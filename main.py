@@ -48,8 +48,67 @@ class target:
 		return title
 
 
+	def musicDownloader(self, originalPath, url="https://baidu.9ku.com/song/?key="):
+		file = open(originalPath + 'songs.txt', 'r', encoding = 'utf-8')
+		for line in file.readlines():
+			line = line.strip('\n')
+			line = re.findall('(?<=\.).*$', line)
+			line = line[0]
+			print(line)
+			website = target(url + "{}".format(quote(line)), None, None)
+			# bsObj = getSiteHtml("https://baidu.9ku.com/song/?key={}".format(quote(line)))
+			try:
+				bsObj = website.getSiteHtml()
+				songList = bsObj.find("div", {"class":"songList"}).findAll("li")
+				flag = 0
+				for song in songList:
+					songName = song.a.get_text()
+					if (line in songName):
+						songUrl = song.a["href"]
+						try:
+							newSite = target("https:" + songUrl, None, None)
+							newObj = newSite.getSiteHtml()
+							songNum = songUrl[len("//www.9ku.com/play/"):-4]
+							newUrl = "https://m.9ku.com/play/{}.htm".format(songNum)				
+							print(newUrl)
+						except:
+							continue
+						driver = webdriver.Chrome(executable_path = "C://ChromeDriver/chromedriver.exe", chrome_options = chrome_options)
+						driver.get(newUrl)
+						wait = WebDriverWait(driver, 1000)
+						html = driver.page_source
+						newnewObj = BeautifulSoup(html, features = 'lxml')
+						# print(newnewObj)
+						original_window = driver.current_window_handle
+						assert len(driver.window_handles) == 1
+						# print(driver.current_url)
+						driver.find_element_by_id("kw").send_keys("selenium")
+						songSite = target(newUrl, None, None)
+						newnewObj = songSite.getSiteHtml()
+						# print(newnewObj)
+						newnewUrl = newnewObj.find(re.compile("\.mp3$"))
+						newnewUrl = newnewObj.findAll(re.compile("[A-Za-z]+"), src = re.compile(".+\.mp3.+$"))
+						newnewUrl = newnewObj.find("audio", src = re.compile("\.mp3$"))["src"]
+						print(newnewUrl)
+						driver.close()
+						try:
+							# urlretrieve(newnewUrl, "D://music/lululu/" + songName + ".mp3")
+							downloadFromUrl(newnewUrl, "D://music/lululu/" + songName + ".mp3")
+							flag = 1
+						except:
+							print(newnewUrl, "\nCan not download!")
+						newnewUrl = newnewObj.find("div", {"class":"player-wrap"}).find("div", {"style":"display: none;width: 0;height: 0;opacity: 0;"})
+						if flag == 1:
+							break
+				if flag == 0:
+					print(line, "not found!")
+			except:
+				print(line, "not found!")
+				continue
+		file.close()
 
-def download_from_url(url, dst):
+
+def downloadFromUrl(url, dst):
 	try:
 		response = requests.get(url, stream=True)
 		file_size = int(response.headers['content-length'])
@@ -76,6 +135,5 @@ def download_from_url(url, dst):
 			return file_size
 	except:
 		return None
-
 
 
